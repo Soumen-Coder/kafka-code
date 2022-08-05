@@ -1,6 +1,5 @@
-package com.example;
+package com.example.producer;
 
-import com.example.Message;
 import org.apache.kafka.common.header.Headers;
 import org.apache.kafka.common.serialization.Serializer;
 
@@ -8,7 +7,6 @@ import java.nio.charset.StandardCharsets;
 import java.util.Map;
 
 public class MessageSerializer implements Serializer<Message> {
-
 
     @Override
     public void configure(Map<String, ?> configs, boolean isKey) {

@@ -1,4 +1,4 @@
-package com.example;
+package com.example.producer;
 
 public class Message {
 

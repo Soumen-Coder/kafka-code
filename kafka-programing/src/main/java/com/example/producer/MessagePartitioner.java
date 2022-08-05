@@ -1,4 +1,4 @@
-package com.example;
+package com.example.producer;
 
 import org.apache.kafka.clients.producer.Partitioner;
 import org.apache.kafka.common.Cluster;
@@ -23,10 +23,8 @@ public class MessagePartitioner implements Partitioner {
         return Math.abs(Utils.murmur2(keyBytes)) % (numPartitions - 1);
     }
 
-
     @Override
     public void close() {
-
     }
 
     @Override
