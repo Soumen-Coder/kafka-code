@@ -1,10 +1,20 @@
 package com.example.producer;
 
+import org.apache.kafka.clients.consumer.*;
 import org.apache.kafka.clients.producer.KafkaProducer;
 import org.apache.kafka.clients.producer.Producer;
 import org.apache.kafka.clients.producer.ProducerConfig;
+import org.apache.kafka.clients.producer.ProducerRecord;
+import org.apache.kafka.common.KafkaException;
+import org.apache.kafka.common.TopicPartition;
+import org.apache.kafka.common.errors.InvalidProducerEpochException;
+import org.apache.kafka.common.errors.ProducerFencedException;
 
+import java.time.Duration;
+import java.util.Collections;
+import java.util.Map;
 import java.util.Properties;
+
 
 public class Transactional {
 
@@ -17,18 +27,47 @@ public class Transactional {
 
         KafkaProducer<String, String> producer = new KafkaProducer<>(producerProps);
 
-        try {
-            producer.beginTransaction();
-            // write message - p1
-
-            // something bad happen
-            // write message - p2
-
-            producer.commitTransaction();
-        } catch (Exception e) {
-            producer.abortTransaction();
+        Properties consumerProps = new Properties();
+        consumerProps.put(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, "localhost:9092");
+        consumerProps.put(ConsumerConfig.GROUP_ID_CONFIG, "G1");
+        consumerProps.put(ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG, "false");
+        consumerProps.put(ConsumerConfig.ISOLATION_LEVEL_CONFIG, "read_committed");
+        KafkaConsumer<String, String> consumer = new KafkaConsumer<>(consumerProps);
+        consumer.subscribe(Collections.singleton("demo-topic"));
+        producer.beginTransaction();
+        while (true) {
+            try {
+                ConsumerRecords<String, String> records = consumer.poll(Duration.ofMillis(200));
+                if (records.count() > 0) {
+                    producer.beginTransaction();
+                    for (ConsumerRecord<String, String> record : records) {
+                        ProducerRecord<String, String> customizedRecord = transform(record);
+                        producer.send(customizedRecord); // partition-write
+                    }
+                    Map<TopicPartition, OffsetAndMetadata> offsets = consumerOffsets();
+                    producer.sendOffsetsToTransaction(offsets, consumer.groupMetadata()); // partion-write __consumer_offsets
+                    producer.commitTransaction();
+                }
+            } catch (ProducerFencedException | InvalidProducerEpochException e) {
+                throw new KafkaException(String.format(
+                        "The transactional.id %s is used by another process", "transactionalId"));
+            } catch (KafkaException e) {
+                producer.abortTransaction();
+                resetToLastCommittedPositions(consumer);
+            }
         }
 
+    }
+
+    private static void resetToLastCommittedPositions(KafkaConsumer<String, String> consumer) {
+    }
+
+    private static Map<TopicPartition, OffsetAndMetadata> consumerOffsets() {
+        return null;
+    }
+
+    private static ProducerRecord<String, String> transform(ConsumerRecord<String, String> record) {
+        return null;
     }
 
 }
